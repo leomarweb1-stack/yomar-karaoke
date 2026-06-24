@@ -331,7 +331,7 @@
   .queue-backdrop.open{ opacity:1; pointer-events:auto; }
 
   .queue-panel{
-    position:fixed; left:0; right:0; bottom:0; z-index: 150; max-height: 70vh;
+    position:fixed; left:0; right:0; bottom:0; z-index: 150; max-height: 78vh;
     background: var(--bg-panel); border-top:1px solid var(--line); border-radius: 16px 16px 0 0;
     display:flex; flex-direction:column;
     transform: translateY(100%); transition: transform .22s ease;
@@ -348,7 +348,7 @@
     background: rgba(255,255,255,0.08); border:none; color:#fff; width:32px; height:32px;
     border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;
   }
-  .queue-list{ overflow-y:auto; padding: 6px 0 max(14px, env(safe-area-inset-bottom)); }
+  .queue-list{ padding: 6px 0 4px; }
   .queue-item{
     display:flex; align-items:center; gap:10px; padding: 10px 16px;
   }
@@ -368,6 +368,42 @@
     width:30px; height:30px; border-radius:50%; flex-shrink:0; font-size:13px;
   }
   .queue-empty{ padding: 32px 16px; text-align:center; color: var(--text-muted); font-size:14px; line-height:1.5; }
+
+  .queue-panel-scroll{ flex:1; min-height:0; overflow-y:auto; }
+  .queue-section-label{
+    font-family: var(--font-utility); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color: var(--text-muted); padding: 14px 16px 6px;
+  }
+  .queue-panel-search{ padding: 0 16px 10px; }
+  .queue-panel-search .search-wrap{ height:44px; }
+  .sheet-grid-wrap{ padding: 0 16px max(16px, env(safe-area-inset-bottom)); }
+  .sheet-grid{ display:flex; flex-direction:column; gap:8px; }
+  .sheet-hint{ color: var(--text-muted); font-size:13px; padding: 4px 2px 8px; }
+  .mini-card{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    background: var(--bg-card); border:1px solid var(--line); border-radius:10px;
+    padding: 9px 12px; color: var(--text-primary);
+  }
+  .mini-card:active{ background: rgba(255,255,255,0.06); }
+  .mini-card-plus{
+    width:26px; height:26px; border-radius:50%; flex-shrink:0;
+    background: rgba(255,255,255,0.10); color: var(--accent-gold); font-weight:700; font-size:15px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mini-card-text{ min-width:0; flex:1; }
+  .mini-card-title{ font-size:13.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mini-card-folder{
+    font-family: var(--font-utility); font-size:10px; color: var(--text-muted);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block;
+  }
+
+  .queue-mini-btn{ position:relative; }
+  .queue-mini-badge{
+    position:absolute; top:-4px; right:-4px;
+    background: var(--accent-magenta); color:#1a0a16;
+    font-family: var(--font-utility); font-size:10px; font-weight:700;
+    border-radius:999px; min-width:16px; height:16px; line-height:16px; text-align:center; padding:0 3px;
+  }
 
   /* ---------- responsive: drawer sidebar on small screens ---------- */
   @media (max-width: 880px){
@@ -449,6 +485,9 @@
       <div class="label">Now Singing</div>
       <div class="title" id="nowTitle">—</div>
     </div>
+    <button class="close-btn queue-mini-btn" id="openQueueFromPlayer" aria-label="Search and view queue">
+      <span>🔍</span><span class="queue-mini-badge" id="playerQueueBadge" hidden>0</span>
+    </button>
     <button class="close-btn" id="minimizeBtn" aria-label="Minimize and keep browsing">▾</button>
   </div>
   <div class="video-stage">
@@ -478,7 +517,20 @@
     <button class="clear-queue" id="clearQueueBtn">Clear</button>
     <button class="close-btn" id="closeQueueBtn" aria-label="Close queue">✕</button>
   </div>
-  <div class="queue-list" id="queueList"></div>
+  <div class="queue-panel-scroll">
+    <div class="queue-list" id="queueList"></div>
+    <div class="queue-section-label">Add more songs</div>
+    <div class="queue-panel-search">
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="text" id="sheetSearchInput" placeholder="Search your library…">
+        <button class="clear-search" id="sheetClearSearch" aria-label="Clear search" hidden>✕</button>
+      </div>
+    </div>
+    <div class="sheet-grid-wrap">
+      <div class="sheet-grid" id="sheetGrid"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -536,6 +588,12 @@
   var queueList = document.getElementById('queueList');
   var closeQueueBtn = document.getElementById('closeQueueBtn');
   var clearQueueBtn = document.getElementById('clearQueueBtn');
+  var openQueueFromPlayer = document.getElementById('openQueueFromPlayer');
+  var playerQueueBadge = document.getElementById('playerQueueBadge');
+  var sheetSearchInput = document.getElementById('sheetSearchInput');
+  var sheetClearSearch = document.getElementById('sheetClearSearch');
+  var sheetGrid = document.getElementById('sheetGrid');
+  var sheetSearchTerm = "";
 
   var toastEl = null;
 
@@ -762,6 +820,8 @@
   function updateQueueBadge(){
     queueBadge.hidden = queue.length === 0;
     queueBadge.textContent = queue.length;
+    playerQueueBadge.hidden = queue.length === 0;
+    playerQueueBadge.textContent = queue.length;
   }
 
   function showToast(msg){
@@ -830,6 +890,7 @@
 
   function openQueuePanel(){
     renderQueuePanel();
+    renderSheetGrid();
     queuePanel.classList.add('open');
     queueBackdrop.classList.add('open');
   }
@@ -838,6 +899,7 @@
     queueBackdrop.classList.remove('open');
   }
   queueBtn.addEventListener('click', openQueuePanel);
+  openQueueFromPlayer.addEventListener('click', openQueuePanel);
   closeQueueBtn.addEventListener('click', closeQueuePanel);
   queueBackdrop.addEventListener('click', closeQueuePanel);
   clearQueueBtn.addEventListener('click', function(){
@@ -845,6 +907,50 @@
     updateQueueBadge();
     renderQueuePanel();
     updateNavButtons();
+  });
+
+  function renderSheetGrid(){
+    var term = sheetSearchTerm.trim().toLowerCase();
+    if (!term){
+      sheetGrid.innerHTML = '<p class="sheet-hint">Type above to search your whole library and add songs to the queue — the video keeps playing while you do.</p>';
+      return;
+    }
+    var list = library.filter(function(it){
+      return it.name.toLowerCase().indexOf(term) !== -1 || it.folderPath.toLowerCase().indexOf(term) !== -1;
+    });
+    if (list.length === 0){
+      sheetGrid.innerHTML = '<p class="sheet-hint">No matches.</p>';
+      return;
+    }
+    var capped = list.slice(0, 40);
+    var html = '';
+    capped.forEach(function(item, idx){
+      html += '<button class="mini-card" data-idx="' + idx + '">' +
+        '<span class="mini-card-plus">+</span>' +
+        '<span class="mini-card-text">' +
+          '<span class="mini-card-title">' + escapeHtml(item.name) + '</span>' +
+          '<span class="mini-card-folder">' + escapeHtml(item.folderPath) + '</span>' +
+        '</span>' +
+      '</button>';
+    });
+    if (list.length > capped.length){
+      html += '<p class="sheet-hint">+' + (list.length - capped.length) + ' more — keep typing to narrow it down.</p>';
+    }
+    sheetGrid.innerHTML = html;
+    Array.prototype.forEach.call(sheetGrid.querySelectorAll('.mini-card'), function(btn){
+      btn.addEventListener('click', function(){
+        var idx = parseInt(btn.getAttribute('data-idx'), 10);
+        addToQueue(capped[idx]);
+      });
+    });
+  }
+  sheetSearchInput.addEventListener('input', function(){
+    sheetSearchTerm = sheetSearchInput.value;
+    sheetClearSearch.hidden = !sheetSearchTerm;
+    renderSheetGrid();
+  });
+  sheetClearSearch.addEventListener('click', function(){
+    sheetSearchInput.value = ""; sheetSearchTerm = ""; sheetClearSearch.hidden = true; renderSheetGrid();
   });
 
   /* ---------- search / sidebar drawer ---------- */
