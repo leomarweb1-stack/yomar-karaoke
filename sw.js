@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yomar-karaoke-v2';
+const CACHE_NAME = 'yomar-karaoke-v3';
 const APP_SHELL = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', function (event) {
